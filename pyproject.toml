@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "crypto-price-forecasting"
+version = "2.0.0"
+description = "Leak-free crypto price forecasting, walk-forward backtesting and coin screening"
+readme = "Readme.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+dependencies = []
+
+[project.optional-dependencies]
+# Heavy deep-learning stack - only needed for the keras_lstm model and the notebooks.
+ml = [
+    "numpy>=1.24",
+    "pandas>=2.0",
+    "scikit-learn>=1.3",
+    "tensorflow>=2.13",
+]
+# Web UI.
+web = ["Flask>=3.0"]
+# Sentiment pipeline (BERT + Reddit).
+sentiment = [
+    "torch>=2.0",
+    "transformers>=4.40",
+    "praw>=7.7",
+    "textblob>=0.18",
+]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+crypto-forecast = "crypto_prediction.__main__:main"
+
+[tool.setuptools]
+packages = ["crypto_prediction", "crypto_prediction.core", "crypto_prediction.web"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

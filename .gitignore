@@ -1,1 +1,22 @@
 venv/
+.venv/
+env/
+.env
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Generated artefacts - reproduce with `python -m crypto_prediction report`
+reports/
+
+# Local sentiment output
+data/
+
+.DS_Store
+.idea/
+.vscode/

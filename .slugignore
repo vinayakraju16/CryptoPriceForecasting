@@ -1,9 +1,11 @@
-*.csv
-*.h5
-*.pt
-*.pkl
+# Files excluded from deployment uploads.
+# Note: the app needs CSV/ at runtime, so it is deliberately NOT excluded here.
 *.ipynb
-*.pth
-*.keras
-.venv/
 *.log
+.pytest_cache/
+reports/
+data/
+docs/
+tests/
+scripts/
+.github/

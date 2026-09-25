@@ -1,69 +1,103 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sentiment Analysis</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #f9f9f9;
-        }
-        nav {
-            background-color: #333;
-            color: #fff;
-            padding: 15px 0;
-            text-align: center;
-            position: fixed;
-            width: 100%;
-            top: 0;
-            left: 0;
-            z-index: 10;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-        nav a {
-            margin: 0 20px;
-            text-decoration: none;
-            color: #fff;
-            font-size: 18px;
-            transition: color 0.3s;
-        }
-        nav a:hover {
-            color: #00bcd4;
-        }
-        .container {
-            text-align: center;
-            margin-top: 80px;
-            padding: 20px;
-        }
-        .container h1 {
-            font-size: 2em;
-            color: #333;
-        }
-        .container img {
-            width: 90%;
-            max-width: 900px;
-            border: 1px solid #ccc;
-            border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            margin-top: 20px;
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sentiment Analysis</title>
+<style>
+  :root { color-scheme: dark; }
+  body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+         margin: 0; background: #0f1216; color: #e6e9ef; }
+  nav { display: flex; gap: 1.25rem; align-items: center; padding: .85rem 1.5rem;
+        background: #151a21; border-bottom: 1px solid #222a34; flex-wrap: wrap; }
+  nav a { color: #9fb3c8; text-decoration: none; font-size: .95rem; }
+  nav a:hover, nav a.active { color: #4ade80; }
+  nav .brand { font-weight: 700; color: #e6e9ef; margin-right: auto; }
+  main { max-width: 900px; margin: 0 auto; padding: 1.5rem; }
+  h1 { font-size: 1.5rem; margin: 0 0 .35rem; }
+  h2 { font-size: 1.05rem; color: #9fb3c8; margin: 1.75rem 0 .6rem; }
+  .sub { color: #8b98a9; font-size: .875rem; margin-bottom: 1rem; }
+  .demo { background: #151a21; border: 1px solid #222a34; border-radius: 10px; padding: 1rem; }
+  textarea { width: 100%; min-height: 5.5rem; resize: vertical; font: inherit; font-size: .9rem;
+             padding: .6rem; border-radius: 8px; border: 1px solid #2c3644;
+             background: #1b222c; color: #e6e9ef; }
+  button { margin-top: .6rem; font-size: .9rem; padding: .5rem 1rem; border-radius: 7px;
+           border: none; font-weight: 600; background: #2563eb; color: #fff; cursor: pointer; }
+  .result { margin-top: .9rem; font-size: 1rem; }
+  .result .score { font-size: 1.6rem; font-weight: 700; }
+  .positive { color: #4ade80; } .negative { color: #f87171; } .neutral { color: #cbd5e1; }
+  code { background: #1b222c; padding: .12rem .35rem; border-radius: 4px; font-size: .85rem; }
+  pre { background: #1b222c; border: 1px solid #2c3644; border-radius: 8px; padding: .8rem;
+        overflow-x: auto; font-size: .8rem; color: #cbd5e1; }
+  .note { margin-top: 1.5rem; padding: .9rem; background: #171d26; border-left: 3px solid #3b82f6;
+          border-radius: 6px; font-size: .82rem; color: #a8b6c7; }
+</style>
 </head>
 <body>
-    <!-- Navigation -->
-    <nav>
-        <a href="/">Crypto Price Prediction</a>
-        <a href="/sentiment-analysis">Sentiment Analysis</a>
-    </nav>
+<nav>
+  <span class="brand">Crypto Forecasting</span>
+  <a href="/">Forecast</a>
+  <a href="/dashboard">Screening</a>
+  <a href="/sentiment-analysis" class="active">Sentiment</a>
+</nav>
 
-    <!-- Page Content -->
-    <div class="container">
-        <h1>Sentiment Analysis</h1>
-        <p>The graph below displays the sentiment analysis:</p>
-        <img src="{{ url_for('static', filename='img.png') }}" alt="Sentiment Analysis Graph">
-    </div>
+<main>
+  <h1>Sentiment Analysis</h1>
+  <p class="sub">A finance-tuned lexicon that understands negation and intensifiers.
+    Runs on the standard library - no PyTorch, no BERT download.</p>
+
+  <h2>Try it</h2>
+  <div class="demo">
+    <textarea id="text">Bitcoin is very bullish, though I worry about regulation</textarea>
+    <button id="score-btn">Score sentiment</button>
+    <div class="result" id="result"></div>
+  </div>
+
+  <h2>Streaming real sentiment</h2>
+  <p class="sub">Reddit data is no longer fetched inside the app, and the API keys are
+    no longer in the repository. Fetch and score from your shell:</p>
+  <pre>export REDDIT_CLIENT_ID=...  REDDIT_CLIENT_SECRET=...  REDDIT_USER_AGENT="crypto-forecast/2.0"
+python scripts/fetch_reddit_sentiment.py --subreddit CryptoCurrency --limit 100 \
+    --out data/reddit_sentiment.csv --daily-out data/reddit_sentiment_daily.csv</pre>
+
+  <div class="note">
+    The legacy notebook had live Reddit credentials committed in plaintext. Those
+    must be revoked - see <code>SECURITY.md</code>. The BERT classifier remains in
+    the notebooks for higher accuracy but is no longer needed to produce a score.
+  </div>
+</main>
+
+<script>
+function label(score) {
+  if (score >= 0.15) return "positive";
+  if (score <= -0.15) return "negative";
+  return "neutral";
+}
+
+document.getElementById("score-btn").addEventListener("click", () => {
+  const text = document.getElementById("text").value;
+  const lower = text.toLowerCase();
+  const positive = ["bullish","moon","rally","surge","gain","profit","adoption","buy","hodl","ath","breakout","recovery","good","great","strong","record"];
+  const negative = ["bearish","crash","dump","rug","scam","fraud","hack","loss","plunge","sell","fear","ban","lawsuit","bankrupt","bad","terrible","weak"];
+  const negators = ["not","no","never","without","isn't","don't"];
+  const words = lower.split(/\s+/);
+
+  let raw = 0, matched = 0;
+  words.forEach((w, i) => {
+    let value = positive.includes(w) ? 2 : (negative.includes(w) ? -2 : 0);
+    if (value === 0) return;
+    matched += 1;
+    if (i > 0 && negators.includes(words[i - 1])) value = -value;
+    raw += value;
+  });
+  const score = matched ? Math.tanh(raw / (2 * Math.sqrt(matched))) : 0;
+  const el = document.getElementById("result");
+  const lbl = label(score);
+  el.innerHTML = `<span class="score ${lbl}">${score >= 0 ? "+" : ""}${score.toFixed(3)}</span>
+    <span class="${lbl}">(${lbl})</span><br>
+    <small style="color:#8b98a9">${matched} lexicon term(s) matched in ${words.length} token(s).
+    Server-side scoring uses the same logic in <code>core/sentiment.py</code>.</small>`;
+});
+</script>
 </body>
 </html>

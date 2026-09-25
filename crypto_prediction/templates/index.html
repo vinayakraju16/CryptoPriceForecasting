@@ -1,172 +1,216 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Cryptocurrency Price Prediction</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Crypto Price Forecasting</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+         margin: 0; background: #0f1216; color: #e6e9ef; }
+  nav { display: flex; gap: 1.25rem; align-items: center; padding: .85rem 1.5rem;
+        background: #151a21; border-bottom: 1px solid #222a34; flex-wrap: wrap; }
+  nav a { color: #9fb3c8; text-decoration: none; font-size: .95rem; }
+  nav a:hover, nav a.active { color: #4ade80; }
+  nav .brand { font-weight: 700; color: #e6e9ef; margin-right: auto; }
+  main { max-width: 1100px; margin: 0 auto; padding: 1.5rem; }
+  h1 { font-size: 1.5rem; margin: 0 0 .35rem; }
+  h2 { font-size: 1.1rem; color: #9fb3c8; margin: 2rem 0 .75rem; }
+  .sub { color: #8b98a9; font-size: .875rem; margin-bottom: 1.25rem; }
+  .controls { display: flex; gap: .6rem; flex-wrap: wrap; align-items: center;
+              background: #151a21; border: 1px solid #222a34; border-radius: 10px; padding: .9rem; }
+  select, input, button { font-size: .9rem; padding: .5rem .7rem; border-radius: 7px;
+                          border: 1px solid #2c3644; background: #1b222c; color: #e6e9ef; }
+  button { cursor: pointer; border: none; font-weight: 600; }
+  button.primary { background: #2563eb; color: #fff; }
+  button.accent  { background: #16a34a; color: #fff; }
+  button:disabled { opacity: .55; cursor: progress; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+           gap: .8rem; margin-top: 1rem; }
+  .card { background: #151a21; border: 1px solid #222a34; border-radius: 10px; padding: .9rem; }
+  .card .label { font-size: .75rem; text-transform: uppercase; letter-spacing: .04em; color: #8b98a9; }
+  .card .value { font-size: 1.25rem; font-weight: 600; margin-top: .3rem; }
+  .chart-wrap { height: 420px; margin-top: 1rem; background: #151a21;
+                border: 1px solid #222a34; border-radius: 10px; padding: .75rem; }
+  table { width: 100%; border-collapse: collapse; font-size: .85rem; background: #151a21;
+          border: 1px solid #222a34; border-radius: 10px; overflow: hidden; }
+  th, td { padding: .55rem .7rem; text-align: right; border-bottom: 1px solid #222a34; }
+  th:first-child, td:first-child { text-align: left; }
+  th { background: #1b222c; color: #9fb3c8; font-weight: 600; }
+  .sig-strong_buy { color: #4ade80; font-weight: 700; }
+  .sig-buy { color: #86efac; }
+  .sig-hold { color: #cbd5e1; }
+  .sig-sell { color: #fdba74; }
+  .sig-strong_sell { color: #f87171; font-weight: 700; }
+  .error { color: #f87171; font-size: .875rem; margin-top: .75rem; }
+  .note { margin-top: 1.75rem; padding: .9rem; background: #171d26;
+          border-left: 3px solid #3b82f6; border-radius: 6px;
+          font-size: .82rem; color: #a8b6c7; }
+</style>
 </head>
-<body style="font-family: Arial, sans-serif;">
-    <nav style="text-align: center; margin-bottom: 10px; background-color: #f8f8f8; padding: 10px;">
-        <a href="/crypto-price-prediction" style="margin-right: 20px; text-decoration: none; font-size: 18px;">Crypto Price Prediction</a>
-        <a href="/sentiment-analysis" style="text-decoration: none; font-size: 18px;">Sentiment Analysis</a>
-    </nav>
-    
-    <div style="text-align: center; margin: 20px;">
-        <h1>Cryptocurrency Price Prediction</h1>
-        <div style="margin-bottom: 20px;">
-            <select id="model-select" style="padding: 10px; font-size: 16px;">
-                {% for model in models %}
-                <option value="{{ model }}">{{ model }}</option>
-                {% endfor %}
-            </select>
-            <select id="timeframe-select" style="padding: 10px; font-size: 16px;">
-                <option value="months">Months</option>
-                <option value="years">Years</option>
-            </select>
-            <button onclick="fetchPrediction()" style="padding: 10px 20px; font-size: 16px; background-color: green; color: white; border: none; cursor: pointer;">
-                Show Graph
-            </button>
-            <button onclick="fetchNextPrice()" style="padding: 10px 20px; font-size: 16px; background-color: blue; color: white; border: none; cursor: pointer;">
-                Predict Next Price
-            </button>
-        </div>
-    </div>
-    <div style="width: 90%; height: 500px; margin: 0 auto;">
-        <canvas id="cryptoChart"></canvas>
-    </div>
-    <div style="width: 90%; margin: 20px auto; text-align: center;">
-        <p><strong>Statistics:</strong></p>
-        <p id="stats" style="font-size: 14px; color: #555;"></p>
-        <p><strong>Next Predicted Price:</strong> <span id="next-price" style="color: green; font-size: 16px;"></span></p>
-    </div>
+<body>
+<nav>
+  <span class="brand">Crypto Forecasting</span>
+  <a href="/" class="active">Forecast</a>
+  <a href="/dashboard">Screening</a>
+  <a href="/sentiment-analysis">Sentiment</a>
+</nav>
 
-    <script>
-        let cryptoChart = null;
+<main>
+  <h1>Price Forecast</h1>
+  <p class="sub">Walk-forward evaluated models. Every prediction carries an error band.</p>
 
-        async function fetchPrediction() {
-            const modelSelect = document.getElementById('model-select');
-            const timeframeSelect = document.getElementById('timeframe-select');
-            const modelName = modelSelect.value;
-            const timeframe = timeframeSelect.value;
+  <div class="controls">
+    <select id="coin"></select>
+    <select id="model"></select>
+    <select id="timeframe">
+      <option value="months">Last 12 months</option>
+      <option value="all">Full history</option>
+    </select>
+    <button class="primary" id="load-btn">Show chart</button>
+    <button class="accent" id="forecast-btn">Predict next price</button>
+  </div>
+  <div class="error" id="error" hidden></div>
 
-            try {
-                const response = await fetch('/data', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ model_name: modelName, timeframe }),
-                });
-                const data = await response.json();
+  <div class="cards" id="cards"></div>
 
-                if (data.error) {
-                    console.error("Error fetching data:", data.error);
-                    return;
-                }
+  <div class="chart-wrap"><canvas id="chart"></canvas></div>
 
-                const dates = data.prices.dates.map(date => new Date(date).toISOString().split('T')[0]); // Format dates
-                const actualPrices = data.prices.actual;
-                const predictedPrices = data.prices.predicted;
+  <div class="note">
+    Statistical projections from historical prices only. Not financial advice.
+    The confidence band is derived from the model's own recent out-of-sample
+    errors - a wide band means the model has been unreliable on that coin.
+  </div>
+</main>
 
-                const actualMin = Math.min(...actualPrices);
-                const actualMax = Math.max(...actualPrices);
-                const actualAvg = (actualPrices.reduce((a, b) => a + b, 0) / actualPrices.length).toFixed(2);
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const coins = {{ models | tojson }};
+const modelOptions = {{ model_options | tojson }};
+let chart = null;
 
-                const predictedMin = Math.min(...predictedPrices);
-                const predictedMax = Math.max(...predictedPrices);
-                const predictedAvg = (predictedPrices.reduce((a, b) => a + b, 0) / predictedPrices.length).toFixed(2);
+function fillSelects() {
+  const coinSel = document.getElementById("coin");
+  const modelSel = document.getElementById("model");
+  coins.forEach(c => coinSel.append(new Option(c, c)));
+  modelOptions.forEach(m => modelSel.append(new Option(m.name, m.name)));
+  modelSel.value = "ensemble";
+}
 
-                document.getElementById('stats').innerHTML = `
-                    <strong>Actual Prices:</strong> Min: $${actualMin}, Max: $${actualMax}, Avg: $${actualAvg} <br>
-                    <strong>Predicted Prices:</strong> Min: $${predictedMin}, Max: $${predictedMax}, Avg: $${predictedAvg}
-                `;
+function showError(msg) {
+  const el = document.getElementById("error");
+  el.textContent = msg;
+  el.hidden = !msg;
+}
 
-                if (cryptoChart) {
-                    cryptoChart.destroy();
-                }
+function money(v) {
+  if (v === null || v === undefined) return "n/a";
+  return v >= 1000 ? "$" + v.toLocaleString(undefined, {maximumFractionDigits: 2})
+                   : "$" + v.toFixed(6).replace(/0+$/, "").replace(/\.$/, "");
+}
 
-                const ctx = document.getElementById('cryptoChart').getContext('2d');
-                cryptoChart = new Chart(ctx, {
-                    type: 'line',
-                    data: {
-                        labels: dates,
-                        datasets: [
-                            {
-                                label: 'Actual Prices',
-                                data: actualPrices,
-                                borderColor: 'blue',
-                                borderWidth: 2,
-                                fill: false,
-                                tension: 0.4
-                            },
-                            {
-                                label: 'Predicted Prices',
-                                data: predictedPrices,
-                                borderColor: 'orange',
-                                borderWidth: 2,
-                                borderDash: [5, 5],
-                                fill: false,
-                                tension: 0.4
-                            }
-                        ]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        scales: {
-                            x: {
-                                title: { display: true, text: 'Date', font: { size: 16 } },
-                                ticks: { font: { size: 12 } }
-                            },
-                            y: {
-                                title: { display: true, text: 'Price (USD)', font: { size: 16 } },
-                                ticks: { font: { size: 12 } }
-                            }
-                        },
-                        plugins: {
-                            legend: {
-                                display: true,
-                                position: 'top',
-                                labels: {
-                                    font: { size: 14 }
-                                }
-                            },
-                            tooltip: {
-                                mode: 'index',
-                                intersect: false,
-                                callbacks: {
-                                    label: (tooltipItem) => `$${tooltipItem.raw.toFixed(2)}`
-                                }
-                            }
-                        }
-                    }
-                });
-            } catch (error) {
-                console.error("Error fetching predictions:", error);
-            }
-        }
+function pct(v) {
+  if (v === null || v === undefined) return "n/a";
+  return (v * 100).toFixed(2) + "%";
+}
 
-        async function fetchNextPrice() {
-            const modelSelect = document.getElementById('model-select');
-            const modelName = modelSelect.value;
+function renderCards(p) {
+  const cards = [
+    ["Coin", p.symbol],
+    ["Last close", money(p.last_price)],
+    ["Next (predicted)", money(p.predicted_next_price)],
+    ["Expected return", pct(p.expected_return)],
+    ["Signal", `<span class="sig-${p.signal}">${p.signal.replace("_", " ")}</span>`],
+    ["Confidence", (p.confidence * 100).toFixed(0) + "%"],
+    ["Directional accuracy", p.accuracy.directional_accuracy === null ? "n/a"
+        : (p.accuracy.directional_accuracy * 100).toFixed(1) + "%"],
+    ["Model", p.model],
+  ];
+  document.getElementById("cards").innerHTML = cards.map(
+    ([label, value]) => `<div class="card"><div class="label">${label}</div><div class="value">${value}</div></div>`
+  ).join("");
+}
 
-            try {
-                const response = await fetch('/next_price', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ model_name: modelName }),
-                });
-                const data = await response.json();
+async function loadHistory() {
+  const btn = document.getElementById("load-btn");
+  btn.disabled = true;
+  showError("");
+  try {
+    const coin = document.getElementById("coin").value;
+    const model = document.getElementById("model").value;
+    const timeframe = document.getElementById("timeframe").value;
+    const res = await fetch("/api/backtest?coin=" + encodeURIComponent(coin) +
+                            "&model=" + encodeURIComponent(model));
+    const data = await res.json();
+    if (data.error) { showError(data.error); return; }
 
-                if (data.error) {
-                    console.error("Error fetching next price:", data.error);
-                    return;
-                }
+    let points = data.predictions || [];
+    if (timeframe === "months") points = points.slice(-365);
+    if (!points.length) { showError("No out-of-sample predictions available."); return; }
 
-                document.getElementById('next-price').textContent = `$${data.next_price.toFixed(2)}`;
-            } catch (error) {
-                console.error("Error fetching next price:", error);
-            }
-        }
-    </script>
+    const labels = points.map(p => p.date);
+    const actual = points.map(p => p.actual);
+    const predicted = points.map(p => p.predicted);
+
+    const m = data.metrics || {};
+    const s = data.strategy || {};
+    document.getElementById("cards").innerHTML = [
+      ["Coin", coin], ["Model", model],
+      ["Dir. accuracy", m.directional_accuracy === null ? "n/a" : (m.directional_accuracy * 100).toFixed(1) + "%"],
+      ["sMAPE", m.smape === null ? "n/a" : m.smape.toFixed(2) + "%"],
+      ["Simulated return", s.total_return === undefined ? "n/a" : pct(s.total_return)],
+      ["Max drawdown", s.max_drawdown === undefined ? "n/a" : pct(s.max_drawdown)],
+      ["Trades (0.1% fee)", s.trades === undefined ? "n/a" : s.trades],
+      ["Steps evaluated", m.n === undefined ? "n/a" : m.n],
+    ].map(([l, v]) => `<div class="card"><div class="label">${l}</div><div class="value">${v}</div></div>`).join("");
+
+    if (chart) chart.destroy();
+    chart = new Chart(document.getElementById("chart"), {
+      type: "line",
+      data: { labels, datasets: [
+        { label: "Actual price", data: actual, borderColor: "#60a5fa", borderWidth: 2, pointRadius: 0, tension: .25 },
+        { label: "Predicted (walk-forward)", data: predicted, borderColor: "#f59e0b",
+          borderWidth: 2, borderDash: [6, 4], pointRadius: 0, tension: .25 },
+      ]},
+      options: { responsive: true, maintainAspectRatio: false,
+        interaction: { mode: "index", intersect: false },
+        plugins: { legend: { labels: { color: "#cbd5e1" } } },
+        scales: {
+          x: { ticks: { color: "#8b98a9", maxTicksLimit: 12 }, grid: { color: "#222a34" } },
+          y: { ticks: { color: "#8b98a9" }, grid: { color: "#222a34" } },
+        }},
+    });
+  } catch (err) {
+    showError("Could not load the chart: " + err.message);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function predictNext() {
+  const btn = document.getElementById("forecast-btn");
+  btn.disabled = true;
+  showError("");
+  try {
+    const coin = document.getElementById("coin").value;
+    const model = document.getElementById("model").value;
+    const res = await fetch("/api/forecast?coin=" + encodeURIComponent(coin) +
+                            "&model=" + encodeURIComponent(model));
+    const data = await res.json();
+    if (data.error) { showError(data.error); return; }
+    renderCards(data);
+  } catch (err) {
+    showError("Could not fetch the forecast: " + err.message);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+fillSelects();
+document.getElementById("load-btn").addEventListener("click", loadHistory);
+document.getElementById("forecast-btn").addEventListener("click", predictNext);
+loadHistory();
+</script>
 </body>
 </html>

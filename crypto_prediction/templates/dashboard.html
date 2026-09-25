@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Coin Screening</title>
+<style>
+  :root { color-scheme: dark; }
+  body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+         margin: 0; background: #0f1216; color: #e6e9ef; }
+  nav { display: flex; gap: 1.25rem; align-items: center; padding: .85rem 1.5rem;
+        background: #151a21; border-bottom: 1px solid #222a34; flex-wrap: wrap; }
+  nav a { color: #9fb3c8; text-decoration: none; font-size: .95rem; }
+  nav a:hover, nav a.active { color: #4ade80; }
+  nav .brand { font-weight: 700; color: #e6e9ef; margin-right: auto; }
+  main { max-width: 1150px; margin: 0 auto; padding: 1.5rem; }
+  h1 { font-size: 1.5rem; margin: 0 0 .35rem; }
+  h2 { font-size: 1.1rem; color: #9fb3c8; margin: 2rem 0 .75rem; }
+  .sub { color: #8b98a9; font-size: .875rem; margin-bottom: 1.25rem; }
+  .controls { display: flex; gap: .6rem; flex-wrap: wrap; align-items: center;
+              background: #151a21; border: 1px solid #222a34; border-radius: 10px; padding: .9rem; }
+  select, input, button { font-size: .9rem; padding: .5rem .7rem; border-radius: 7px;
+                          border: 1px solid #2c3644; background: #1b222c; color: #e6e9ef; }
+  button { cursor: pointer; border: none; font-weight: 600; background: #2563eb; color: #fff; }
+  button:disabled { opacity: .55; cursor: progress; }
+  table { width: 100%; border-collapse: collapse; font-size: .85rem; background: #151a21;
+          border: 1px solid #222a34; border-radius: 10px; overflow: hidden; margin-top: .5rem; }
+  th, td { padding: .55rem .7rem; text-align: right; border-bottom: 1px solid #222a34; }
+  th:first-child, td:first-child { text-align: left; }
+  th { background: #1b222c; color: #9fb3c8; font-weight: 600; }
+  tr:hover td { background: #1a212b; }
+  .sig-strong_buy { color: #4ade80; font-weight: 700; }
+  .sig-buy { color: #86efac; }
+  .sig-hold { color: #cbd5e1; }
+  .sig-sell { color: #fdba74; }
+  .sig-strong_sell { color: #f87171; font-weight: 700; }
+  .muted { color: #7c8998; text-align: left; }
+  .error { color: #f87171; font-size: .875rem; margin-top: .75rem; }
+  .note { margin-top: 1.75rem; padding: .9rem; background: #171d26;
+          border-left: 3px solid #3b82f6; border-radius: 6px;
+          font-size: .82rem; color: #a8b6c7; }
+</style>
+</head>
+<body>
+<nav>
+  <span class="brand">Crypto Forecasting</span>
+  <a href="/">Forecast</a>
+  <a href="/dashboard" class="active">Screening</a>
+  <a href="/sentiment-analysis">Sentiment</a>
+</nav>
+
+<main>
+  <h1>Coin Screening</h1>
+  <p class="sub">Ranked by expected return divided by the model's own error - a big
+    predicted jump on a coin the model cannot price does not win.</p>
+
+  <div class="controls">
+    <select id="model"></select>
+    <input id="top" type="number" min="1" max="10" value="10" style="width:5rem">
+    <button id="run-btn">Run screening</button>
+  </div>
+  <div class="error" id="error" hidden></div>
+
+  <h2>Screening</h2>
+  <table id="screen-table">
+    <thead><tr>
+      <th>Coin</th><th>Signal</th><th>Last</th><th>Next (pred)</th><th>Exp. return</th>
+      <th>Confidence</th><th>Dir. acc.</th><th>Vol (ann.)</th><th>Max DD</th>
+    </tr></thead>
+    <tbody><tr><td colspan="9" class="muted">loading…</td></tr></tbody>
+  </table>
+
+  <h2>Recommended allocations</h2>
+  <table id="rec-table">
+    <thead><tr>
+      <th>Coin</th><th>Signal</th><th>Exp. return</th><th>Allocate</th><th>Weight</th><th>Risk at stake</th>
+    </tr></thead>
+    <tbody><tr><td colspan="6" class="muted">loading…</td></tr></tbody>
+  </table>
+
+  <div class="note">
+    Nothing here is financial advice. Proposals appear only when the expected
+    return is positive and clears the model's own error scale; an empty table is
+    a valid and honest answer.
+  </div>
+</main>
+
+<script>
+const modelOptions = {{ model_options | tojson }};
+const modelSel = document.getElementById("model");
+
+function showError(msg) {
+  const el = document.getElementById("error");
+  el.textContent = msg;
+  el.hidden = !msg;
+}
+
+function money(v) {
+  if (v === null || v === undefined) return "n/a";
+  return v >= 1000 ? "$" + v.toLocaleString(undefined, {maximumFractionDigits: 2})
+                   : "$" + v.toFixed(6).replace(/0+$/, "").replace(/\.$/, "");
+}
+const pct = v => (v === null || v === undefined) ? "n/a" : (v * 100).toFixed(2) + "%";
+const num = (v, d = 3) => (v === null || v === undefined) ? "n/a" : Number(v).toFixed(d);
+
+async function run() {
+  const btn = document.getElementById("run-btn");
+  btn.disabled = true;
+  showError("");
+  try {
+    const model = modelSel.value || "ensemble";
+    const top = document.getElementById("top").value;
+    const res = await fetch("/api/screen?model=" + encodeURIComponent(model) + "&top=" + top);
+    const data = await res.json();
+    if (data.error) { showError(data.error); return; }
+
+    document.querySelector("#screen-table tbody").innerHTML = data.rows.map(r => {
+      if (r.error) return `<tr><td>${r.symbol}</td><td colspan="8" class="muted">skipped: ${r.error}</td></tr>`;
+      return `<tr>
+        <td>${r.symbol}</td>
+        <td class="sig-${r.signal}">${r.signal.replace("_", " ")}</td>
+        <td>${money(r.last_price)}</td>
+        <td>${money(r.predicted_next_price)}</td>
+        <td>${pct(r.expected_return)}</td>
+        <td>${num(r.confidence, 2)}</td>
+        <td>${num(r.directional_accuracy)}</td>
+        <td>${num(r.volatility_annual, 2)}</td>
+        <td>${num(r.max_drawdown)}</td></tr>`;
+    }).join("") || `<tr><td colspan="9" class="muted">no data</td></tr>`;
+
+    const winners = data.rows.filter(r => !r.error && r.expected_return > 0);
+    document.querySelector("#rec-table tbody").innerHTML = winners.map(r => {
+      const risk = r.expected_return / Math.max(r.error_scale, 1e-9);
+      return `<tr>
+        <td>${r.symbol}</td>
+        <td class="sig-${r.signal}">${r.signal.replace("_", " ")}</td>
+        <td>${pct(r.expected_return)}</td>
+        <td>${money(Math.min(250, 1000 * 0.02 / Math.max(r.error_scale, 1e-9)))}</td>
+        <td>${(Math.min(0.25, 0.02 / Math.max(r.error_scale, 1e-9)) * 100).toFixed(1)}%</td>
+        <td>${num(risk, 2)}</td></tr>`;
+    }).join("") || `<tr><td colspan="6" class="muted">nothing cleared the bar - staying flat is a valid call</td></tr>`;
+  } catch (err) {
+    showError("Screening failed: " + err.message);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+modelOptions.forEach(m => modelSel.append(new Option(m.name, m.name)));
+modelSel.value = "ensemble";
+document.getElementById("run-btn").addEventListener("click", run);
+run();
+</script>
+</body>
+</html>

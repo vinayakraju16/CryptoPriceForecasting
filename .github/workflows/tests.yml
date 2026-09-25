@@ -1,0 +1,83 @@
+"""CI: run the test suite and build the static report.
+
+Only the standard library is needed, so what CI proves is exactly what a
+reviewer can reproduce locally: the data pipeline, models, backtester, HTTP
+server and report generator all work with no heavy dependency installed.
+"""
+
+name: tests
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  core:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Run the standard-library test suite
+        run: python -m unittest discover -s tests -v
+
+      - name: Validate every bundled dataset
+        run: python -m crypto_prediction validate
+
+      - name: Screen the universe and benchmark models
+        run: |
+          python -m crypto_prediction screen --model drift --top 5
+          python -m crypto_prediction compare Bitcoin
+          python -m crypto_prediction recommend --capital 5000 --model drift
+
+      - name: Build the static HTML report
+        run: python -m crypto_prediction report --out reports/latest.html --json-out reports/latest.json
+
+      - name: Smoke-test the HTTP server
+        run: |
+          python -m crypto_prediction.server --port 8599 &
+          SERVER_PID=$!
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8599/healthz > /dev/null; then break; fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:8599/healthz
+          curl -fsS "http://127.0.0.1:8599/api/forecast?coin=Bitcoin&model=drift" > /dev/null
+          kill $SERVER_PID
+
+      - name: Upload the report as a build artefact
+        uses: actions/upload-artifact@v4
+        with:
+          name: forecast-report-py${{ matrix.python-version }}
+          path: reports/
+
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Flask and exercise the web app
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "Flask>=3.0"
+          python - <<'PY'
+          from crypto_prediction.web.app import create_app
+          app = create_app()
+          client = app.test_client()
+          assert client.get("/healthz").status_code == 200
+          assert client.get("/api/forecast?coin=Bitcoin&model=drift").status_code == 200
+          assert client.post("/next_price", json={"model_name": "Bitcoin"}).status_code == 200
+          assert client.post("/data", json={"model_name": "Bitcoin", "timeframe": "years"}).status_code == 200
+          print("flask web app OK")
+          PY

@@ -1,1 +1,1 @@
-web: python crypto_prediction/app.py
+web: python -m crypto_prediction.web.app
